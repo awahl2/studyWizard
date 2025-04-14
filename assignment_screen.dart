@@ -32,10 +32,18 @@ class AssignmentScreenState extends State<AssignmentScreen> {
     if (picked != null) onDatePicked(picked);
   }
 
-  void _showAddDialog(String type) {
+  void _showAddDialog(String type, {int? editIndex}) {
     _titleController.clear();
     _selectedCourse = null;
     _selectedDate = null;
+
+    // Pre-fill the fields if editing
+    if (editIndex != null) {
+      final assignment = _assignments[editIndex];
+      _titleController.text = assignment.title;
+      _selectedCourse = assignment.course;
+      _selectedDate = assignment.date;
+    }
 
     showModalBottomSheet(
       context: context,
@@ -68,10 +76,7 @@ class AssignmentScreenState extends State<AssignmentScreen> {
                   DropdownButtonFormField<String>(
                     value: _selectedCourse,
                     items: _courseOptions
-                        .map((course) => DropdownMenuItem<String>(
-                              value: course,
-                              child: Text(course),
-                            ))
+                        .map((course) => DropdownMenuItem<String>(value: course, child: Text(course)))
                         .toList(),
                     onChanged: (val) => setModalState(() => _selectedCourse = val),
                     decoration: InputDecoration(labelText: 'Course'),
@@ -83,7 +88,8 @@ class AssignmentScreenState extends State<AssignmentScreen> {
                         child: Text(
                           _selectedDate == null
                               ? 'No date selected'
-                              : 'Date: ${_selectedDate!.toLocal()}'.split(' ')[0],
+                              : 'Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}',
+
                         ),
                       ),
                       TextButton(
@@ -108,20 +114,34 @@ class AssignmentScreenState extends State<AssignmentScreen> {
                       _newCourseController.clear();
                     } else {
                       if (_titleController.text.isEmpty || _selectedCourse == null || _selectedDate == null) return;
-                      setState(() {
-                        _assignments.add(
-                          Assignment(
+                      if (editIndex != null) {
+                        // Edit the existing assignment, keep the completion status
+                        setState(() {
+                          _assignments[editIndex] = Assignment(
                             title: _titleController.text,
                             course: _selectedCourse!,
                             date: _selectedDate!,
-                          ),
-                        );
-                      });
+                            isComplete: _assignments[editIndex].isComplete, // Keep the old completion status
+                          );
+                        });
+                      } else {
+                        // Add a new assignment
+                        setState(() {
+                          _assignments.add(
+                            Assignment(
+                              title: _titleController.text,
+                              course: _selectedCourse!,
+                              date: _selectedDate!,
+                              isComplete: false, // New assignment starts as incomplete
+                            ),
+                          );
+                        });
+                      }
                       _titleController.clear();
                     }
                     Navigator.of(context).pop();
                   },
-                  child: Text('Add $type'),
+                  child: Text(editIndex != null ? 'Edit Assignment' : 'Add Assignment'),
                 ),
                 SizedBox(height: 10),
               ],
@@ -133,27 +153,78 @@ class AssignmentScreenState extends State<AssignmentScreen> {
   }
 
   Widget _buildAssignmentTile(Assignment assignment, int index) {
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 6),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: assignment.isComplete ? Colors.green.shade100 : Colors.white,
       child: ListTile(
-        leading: Checkbox(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
+        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        title: Text(
+          assignment.title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            decoration: assignment.isComplete ? TextDecoration.lineThrough : null,
           ),
-          value: assignment.isComplete,
-          onChanged: (_) => _toggleCompletion(index),
         ),
-        title: Text(assignment.title),
-        subtitle: Text(assignment.course),
-        trailing: Text(
-          '${assignment.date.toLocal()}'.split(' ')[0],
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        subtitle: Text(
+          '${assignment.course} • ${assignment.date.toLocal().toString().split(' ')[0]}',
+          style: TextStyle(fontSize: 14),
         ),
+        trailing: IconButton(
+          icon: Icon(
+            assignment.isComplete ? Icons.check_circle : Icons.radio_button_unchecked,
+            color: assignment.isComplete ? Colors.green : Colors.grey,
+          ),
+          onPressed: () => _toggleCompletion(index),
+        ),
+        onTap: () => _showAssignmentDetailDialog(assignment, index),
       ),
+    );
+  }
+
+  void _showAssignmentDetailDialog(Assignment assignment, int index) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text('Assignment Details'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Title: ${assignment.title}'),
+              Text('Course: ${assignment.course}'),
+              Text('Date: ${assignment.date.toLocal().toString().split(' ')[0]}'),
+              Text('Completed: ${assignment.isComplete ? 'Yes' : 'No'}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showAddDialog('Assignment', editIndex: index);
+              },
+              child: Text('Edit'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _assignments.removeAt(index);
+                });
+                Navigator.of(context).pop();
+              },
+              child: Text('Delete'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -163,27 +234,24 @@ class AssignmentScreenState extends State<AssignmentScreen> {
       appBar: AppBar(
         title: Text('Assignments'),
         actions: [
-          PopupMenuButton<String>(
-            onSelected: _showAddDialog,
-            itemBuilder: (context) => [
-              PopupMenuItem(value: 'Assignment', child: Text('New Assignment')),
-              PopupMenuItem(value: 'Test', child: Text('New Test')),
-              PopupMenuItem(value: 'Course', child: Text('New Course')),
-            ],
+          IconButton(
             icon: Icon(Icons.add),
+            onPressed: () => _showAddDialog('Assignment'),
+            tooltip: 'Add Assignment',
+          ),
+          IconButton(
+            icon: Icon(Icons.school),
+            onPressed: () => _showAddDialog('Course'),
+            tooltip: 'Add Course',
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _assignments.isEmpty
-            ? Center(child: Text("No assignments or tests yet."))
-            : ListView.builder(
-                itemCount: _assignments.length,
-                itemBuilder: (context, index) =>
-                    _buildAssignmentTile(_assignments[index], index),
-              ),
-      ),
+      body: _assignments.isEmpty
+          ? Center(child: Text('No assignments yet.'))
+          : ListView.builder(
+              itemCount: _assignments.length,
+              itemBuilder: (ctx, index) => _buildAssignmentTile(_assignments[index], index),
+            ),
     );
   }
 }
