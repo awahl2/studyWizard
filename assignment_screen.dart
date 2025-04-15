@@ -3,10 +3,10 @@ import 'assignment_model.dart';
 
 class AssignmentScreen extends StatefulWidget {
   @override
-  AssignmentScreenState createState() => AssignmentScreenState();
+  State<AssignmentScreen> createState() => _AssignmentScreenState();
 }
 
-class AssignmentScreenState extends State<AssignmentScreen> {
+class _AssignmentScreenState extends State<AssignmentScreen> {
   final List<Assignment> _assignments = [];
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _newCourseController = TextEditingController();
@@ -37,7 +37,6 @@ class AssignmentScreenState extends State<AssignmentScreen> {
     _selectedCourse = null;
     _selectedDate = null;
 
-    // Pre-fill the fields if editing
     if (editIndex != null) {
       final assignment = _assignments[editIndex];
       _titleController.text = assignment.title;
@@ -89,7 +88,6 @@ class AssignmentScreenState extends State<AssignmentScreen> {
                           _selectedDate == null
                               ? 'No date selected'
                               : 'Date: ${_selectedDate!.toLocal().toString().split(' ')[0]}',
-
                         ),
                       ),
                       TextButton(
@@ -115,24 +113,22 @@ class AssignmentScreenState extends State<AssignmentScreen> {
                     } else {
                       if (_titleController.text.isEmpty || _selectedCourse == null || _selectedDate == null) return;
                       if (editIndex != null) {
-                        // Edit the existing assignment, keep the completion status
                         setState(() {
                           _assignments[editIndex] = Assignment(
                             title: _titleController.text,
                             course: _selectedCourse!,
                             date: _selectedDate!,
-                            isComplete: _assignments[editIndex].isComplete, // Keep the old completion status
+                            isComplete: _assignments[editIndex].isComplete,
                           );
                         });
                       } else {
-                        // Add a new assignment
                         setState(() {
                           _assignments.add(
                             Assignment(
                               title: _titleController.text,
                               course: _selectedCourse!,
                               date: _selectedDate!,
-                              isComplete: false, // New assignment starts as incomplete
+                              isComplete: false,
                             ),
                           );
                         });
@@ -141,7 +137,9 @@ class AssignmentScreenState extends State<AssignmentScreen> {
                     }
                     Navigator.of(context).pop();
                   },
-                  child: Text(editIndex != null ? 'Edit Assignment' : 'Add Assignment'),
+                  child: Text(editIndex != null
+                      ? 'Edit Assignment'
+                      : (type == 'Course' ? 'Add Course' : 'Add Assignment')),
                 ),
                 SizedBox(height: 10),
               ],
@@ -154,29 +152,37 @@ class AssignmentScreenState extends State<AssignmentScreen> {
 
   Widget _buildAssignmentTile(Assignment assignment, int index) {
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: assignment.isComplete ? Colors.green.shade100 : Colors.white,
+      elevation: 2,
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        leading: Checkbox(
+          value: assignment.isComplete,
+          onChanged: (_) => _toggleCompletion(index),
+        ),
         title: Text(
           assignment.title,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 16,
             decoration: assignment.isComplete ? TextDecoration.lineThrough : null,
           ),
         ),
         subtitle: Text(
-          '${assignment.course} • ${assignment.date.toLocal().toString().split(' ')[0]}',
+          assignment.course,
           style: TextStyle(fontSize: 14),
         ),
-        trailing: IconButton(
-          icon: Icon(
-            assignment.isComplete ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: assignment.isComplete ? Colors.green : Colors.grey,
+        trailing: Container(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.brown[100],
+            borderRadius: BorderRadius.circular(20),
           ),
-          onPressed: () => _toggleCompletion(index),
+          child: Text(
+            '${assignment.date.month}/${assignment.date.day}',
+            style: TextStyle(fontSize: 12),
+          ),
         ),
         onTap: () => _showAssignmentDetailDialog(assignment, index),
       ),
@@ -217,9 +223,7 @@ class AssignmentScreenState extends State<AssignmentScreen> {
               child: Text('Delete'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: Text('Close'),
             ),
           ],
@@ -228,30 +232,95 @@ class AssignmentScreenState extends State<AssignmentScreen> {
     );
   }
 
+  void _showDropdownMenu() {
+    showMenu(
+      context: context,
+      position: RelativeRect.fromLTRB(100, 140, 20, 0),
+      items: [
+        PopupMenuItem(
+          value: 'Assignment',
+          child: Text('Assignment'),
+        ),
+        PopupMenuItem(
+          value: 'Test',
+          child: Text('Test'),
+        ),
+        PopupMenuItem(
+          value: 'Course',
+          child: Text('Course'),
+        ),
+        PopupMenuItem(
+          value: 'Other',
+          child: Text('Other'),
+        ),
+      ],
+    ).then((value) {
+      if (value != null) {
+        _showAddDialog(value);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Assignments'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: () => _showAddDialog('Assignment'),
-            tooltip: 'Add Assignment',
-          ),
-          IconButton(
-            icon: Icon(Icons.school),
-            onPressed: () => _showAddDialog('Course'),
-            tooltip: 'Add Course',
-          ),
-        ],
-      ),
-      body: _assignments.isEmpty
-          ? Center(child: Text('No assignments yet.'))
-          : ListView.builder(
-              itemCount: _assignments.length,
-              itemBuilder: (ctx, index) => _buildAssignmentTile(_assignments[index], index),
+      backgroundColor: Colors.grey.shade100,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Color(0xDDBDAA94),
+                borderRadius: BorderRadius.only(
+                  bottomRight: Radius.circular(40),
+                ),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'ASSIGNMENTS',
+                    style: TextStyle(
+                      fontSize: 22,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  CircleAvatar(
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.person),
+                  )
+                ],
+              ),
             ),
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xDDBDAA94),
+                    shape: StadiumBorder(),
+                    elevation: 2,
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  ),
+                  onPressed: _showDropdownMenu,
+                  child: Icon(Icons.add, color: Colors.black),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _assignments.isEmpty
+                  ? Center(child: Text('No assignments yet.'))
+                  : ListView.builder(
+                      itemCount: _assignments.length,
+                      itemBuilder: (ctx, index) => _buildAssignmentTile(_assignments[index], index),
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
