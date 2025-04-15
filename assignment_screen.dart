@@ -1,3 +1,5 @@
+// assignment_screen.dart
+
 import 'package:flutter/material.dart';
 import 'assignment_model.dart';
 
@@ -6,15 +8,18 @@ class AssignmentScreen extends StatefulWidget {
   State<AssignmentScreen> createState() => _AssignmentScreenState();
 }
 
-class _AssignmentScreenState extends State<AssignmentScreen> {
+class _AssignmentScreenState extends State<AssignmentScreen> with TickerProviderStateMixin {
   final List<Assignment> _assignments = [];
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _newCourseController = TextEditingController();
+  final GlobalKey _menuKey = GlobalKey();
 
   DateTime? _selectedDate;
   String? _selectedCourse;
 
   List<String> _courseOptions = ['Math', 'Science', 'English'];
+  OverlayEntry? _dropdownEntry;
+  AnimationController? _dropdownAnimationController;
 
   void _toggleCompletion(int index) {
     setState(() {
@@ -34,15 +39,19 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
 
   void _showAddDialog(String type, {int? editIndex}) {
     _titleController.clear();
-    _selectedCourse = null;
-    _selectedDate = null;
+    _newCourseController.clear();
 
     if (editIndex != null) {
       final assignment = _assignments[editIndex];
       _titleController.text = assignment.title;
       _selectedCourse = assignment.course;
       _selectedDate = assignment.date;
+    } else {
+      _selectedCourse = null;
+      _selectedDate = null;
     }
+
+    _closeDropdown(); // Ensure dropdown is closed before opening dialog
 
     showModalBottomSheet(
       context: context,
@@ -68,7 +77,11 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
                   TextField(
                     controller: _titleController,
                     decoration: InputDecoration(
-                      labelText: type == 'Test' ? 'Test Name' : 'Assignment Name',
+                      labelText: type == 'Test'
+                          ? 'Test Name'
+                          : type == 'Other'
+                              ? 'Other Event Name'
+                              : 'Assignment Name',
                     ),
                   ),
                   SizedBox(height: 10),
@@ -111,41 +124,118 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
                       });
                       _newCourseController.clear();
                     } else {
-                      if (_titleController.text.isEmpty || _selectedCourse == null || _selectedDate == null) return;
-                      if (editIndex != null) {
-                        setState(() {
-                          _assignments[editIndex] = Assignment(
-                            title: _titleController.text,
-                            course: _selectedCourse!,
-                            date: _selectedDate!,
-                            isComplete: _assignments[editIndex].isComplete,
-                          );
-                        });
-                      } else {
-                        setState(() {
-                          _assignments.add(
-                            Assignment(
-                              title: _titleController.text,
-                              course: _selectedCourse!,
-                              date: _selectedDate!,
-                              isComplete: false,
-                            ),
-                          );
-                        });
+                      if (_titleController.text.isEmpty ||
+                          _selectedCourse == null ||
+                          _selectedDate == null) {
+                        return;
                       }
+
+                      final assignment = Assignment(
+                        title: _titleController.text,
+                        course: _selectedCourse!,
+                        date: _selectedDate!,
+                        isComplete: editIndex != null ? _assignments[editIndex].isComplete : false,
+                      );
+
+                      setState(() {
+                        if (editIndex != null) {
+                          _assignments[editIndex] = assignment;
+                        } else {
+                          _assignments.add(assignment);
+                        }
+                      });
+
                       _titleController.clear();
                     }
                     Navigator.of(context).pop();
                   },
-                  child: Text(editIndex != null
-                      ? 'Edit Assignment'
-                      : (type == 'Course' ? 'Add Course' : 'Add Assignment')),
+                  child: Text(
+                    editIndex != null
+                        ? 'Edit ${type == 'Other' ? 'Other Event' : 'Assignment'}'
+                        : type == 'Course'
+                            ? 'Add Course'
+                            : type == 'Other'
+                                ? 'Add Other Event'
+                                : 'Add Assignment',
+                  ),
                 ),
                 SizedBox(height: 10),
               ],
             );
           },
         ),
+      ),
+    );
+  }
+
+  void _showDropdownMenu() {
+    final RenderBox renderBox = _menuKey.currentContext!.findRenderObject() as RenderBox;
+    final Offset offset = renderBox.localToGlobal(Offset.zero);
+    final Size size = renderBox.size;
+
+    _dropdownAnimationController = AnimationController(
+      duration: Duration(milliseconds: 200),
+      vsync: this,
+    );
+    final Animation<double> scale = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _dropdownAnimationController!, curve: Curves.easeOut),
+    );
+    final Animation<double> opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _dropdownAnimationController!, curve: Curves.easeOut),
+    );
+
+    _dropdownEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: offset.dx,
+        top: offset.dy + size.height + 8,
+        child: Material(
+          elevation: 4,
+          borderRadius: BorderRadius.circular(8),
+          child: FadeTransition(
+            opacity: opacity,
+            child: ScaleTransition(
+              scale: scale,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildPopupItem('Assignment'),
+                  _buildPopupItem('Test'),
+                  _buildPopupItem('Course'),
+                  _buildPopupItem('Other'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_dropdownEntry!);
+    _dropdownAnimationController!.forward();
+  }
+
+  void _closeDropdown() {
+    if (_dropdownEntry != null && _dropdownAnimationController != null) {
+      _dropdownAnimationController!.reverse().then((_) {
+        _dropdownEntry?.remove();
+        _dropdownEntry = null;
+        _dropdownAnimationController?.dispose();
+        _dropdownAnimationController = null;
+      });
+    }
+  }
+
+  Widget _buildPopupItem(String type) {
+    return InkWell(
+      onTap: () {
+        _closeDropdown();
+        _showAddDialog(type);
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        alignment: Alignment.centerLeft,
+        width: 140,
+        child: Text(type, style: TextStyle(color: Colors.black)),
       ),
     );
   }
@@ -232,33 +322,12 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
     );
   }
 
-  void _showDropdownMenu() {
-    showMenu(
-      context: context,
-      position: RelativeRect.fromLTRB(100, 140, 20, 0),
-      items: [
-        PopupMenuItem(
-          value: 'Assignment',
-          child: Text('Assignment'),
-        ),
-        PopupMenuItem(
-          value: 'Test',
-          child: Text('Test'),
-        ),
-        PopupMenuItem(
-          value: 'Course',
-          child: Text('Course'),
-        ),
-        PopupMenuItem(
-          value: 'Other',
-          child: Text('Other'),
-        ),
-      ],
-    ).then((value) {
-      if (value != null) {
-        _showAddDialog(value);
-      }
-    });
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _newCourseController.dispose();
+    _dropdownAnimationController?.dispose();
+    super.dispose();
   }
 
   @override
@@ -299,6 +368,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: ElevatedButton(
+                  key: _menuKey,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xDDBDAA94),
                     shape: StadiumBorder(),
