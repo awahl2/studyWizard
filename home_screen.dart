@@ -1,6 +1,8 @@
+// home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'assignment_model.dart';
-import 'assignment_storage.dart';
+import 'assignment_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,44 +13,28 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool isWeekSelected = true;
-  List<Assignment> allAssignments = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadAssignments();
-  }
-
-  void _loadAssignments() async {
-    final loaded = await AssignmentStorage.loadAssignments();
-    setState(() {
-      allAssignments = loaded;
-    });
-  }
-
-  List<Assignment> get filteredAssignments {
+  List<Assignment> _filterAssignments(List<Assignment> allAssignments) {
     if (isWeekSelected) {
-      DateTime now = DateTime.now();
-      DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+      final now = DateTime.now();
+      final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
       return allAssignments.where((a) => a.date.isAfter(startOfWeek)).toList();
     } else {
       return allAssignments;
     }
   }
 
-  int countByStatus(String status) {
-    switch (status) {
-      case "incomplete":
-        return filteredAssignments.where((a) => !a.isComplete).length;
-      case "complete":
-        return filteredAssignments.where((a) => a.isComplete).length;
-      default:
-        return 0;
-    }
+  int countByStatus(List<Assignment> list, String status) {
+    return status == "complete"
+        ? list.where((a) => a.isComplete).length
+        : list.where((a) => !a.isComplete).length;
   }
 
   @override
   Widget build(BuildContext context) {
+    final assignments = context.watch<AssignmentProvider>().assignments;
+    final filteredAssignments = _filterAssignments(assignments);
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F7),
       body: SafeArea(
@@ -117,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       backgroundColor: const Color(0xFFC8B7A6),
                       radius: 14,
                       child: Text(
-                        countByStatus(status).toString(),
+                        countByStatus(filteredAssignments, status).toString(),
                         style: const TextStyle(color: Colors.black),
                       ),
                     ),
@@ -158,22 +144,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: filteredAssignments.length,
                   itemBuilder: (context, index) {
                     final assignment = filteredAssignments[index];
+                    final realIndex = assignments.indexOf(assignment);
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
                         leading: Checkbox(
                           value: assignment.isComplete,
-                          onChanged: (val) {
-                            setState(() {
-                              assignment.isComplete = val ?? false;
-                            });
-                            AssignmentStorage.saveAssignments(allAssignments);
+                          onChanged: (_) {
+                            context.read<AssignmentProvider>().toggleCompletion(realIndex);
                           },
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
                         title: Text(assignment.title),
-                        subtitle: Text(
-                            "${assignment.course} • ${assignment.isComplete ? 'Completed' : 'Incomplete'}"),
+                        subtitle: Text("${assignment.course} • ${assignment.isComplete ? 'Completed' : 'Incomplete'}"),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
