@@ -1,4 +1,5 @@
 // assignment_model.dart
+
 class Assignment {
   String title;
   String course;
