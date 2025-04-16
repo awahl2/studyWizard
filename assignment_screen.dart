@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'assignment_model.dart';
+import 'assignment_storage.dart';
 
 class AssignmentScreen extends StatefulWidget {
   @override
@@ -9,7 +10,7 @@ class AssignmentScreen extends StatefulWidget {
 }
 
 class _AssignmentScreenState extends State<AssignmentScreen> with TickerProviderStateMixin {
-  final List<Assignment> _assignments = [];
+  List<Assignment> _assignments = [];
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _newCourseController = TextEditingController();
   final GlobalKey _menuKey = GlobalKey();
@@ -21,10 +22,24 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
   OverlayEntry? _dropdownEntry;
   AnimationController? _dropdownAnimationController;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadAssignments();
+  }
+
+  void _loadAssignments() async {
+    final loaded = await AssignmentStorage.loadAssignments();
+    setState(() {
+      _assignments = loaded;
+    });
+  }
+
   void _toggleCompletion(int index) {
     setState(() {
       _assignments[index].isComplete = !_assignments[index].isComplete;
     });
+    AssignmentStorage.saveAssignments(_assignments);
   }
 
   void _pickDate(Function(DateTime) onDatePicked) async {
@@ -51,7 +66,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
       _selectedDate = null;
     }
 
-    _closeDropdown(); // Ensure dropdown is closed before opening dialog
+    _closeDropdown();
 
     showModalBottomSheet(
       context: context,
@@ -145,6 +160,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
                         }
                       });
 
+                      AssignmentStorage.saveAssignments(_assignments);
                       _titleController.clear();
                     }
                     Navigator.of(context).pop();
@@ -308,6 +324,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
                 setState(() {
                   _assignments.removeAt(index);
                 });
+                AssignmentStorage.saveAssignments(_assignments);
                 Navigator.of(context).pop();
               },
               child: Text('Delete'),
