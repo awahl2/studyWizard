@@ -1,8 +1,8 @@
 // assignment_screen.dart
-
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'assignment_model.dart';
-import 'assignment_storage.dart';
+import 'assignment_provider.dart';
 
 class AssignmentScreen extends StatefulWidget {
   @override
@@ -10,7 +10,6 @@ class AssignmentScreen extends StatefulWidget {
 }
 
 class _AssignmentScreenState extends State<AssignmentScreen> with TickerProviderStateMixin {
-  List<Assignment> _assignments = [];
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _newCourseController = TextEditingController();
   final GlobalKey _menuKey = GlobalKey();
@@ -22,26 +21,6 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
   OverlayEntry? _dropdownEntry;
   AnimationController? _dropdownAnimationController;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadAssignments();
-  }
-
-  void _loadAssignments() async {
-    final loaded = await AssignmentStorage.loadAssignments();
-    setState(() {
-      _assignments = loaded;
-    });
-  }
-
-  void _toggleCompletion(int index) {
-    setState(() {
-      _assignments[index].isComplete = !_assignments[index].isComplete;
-    });
-    AssignmentStorage.saveAssignments(_assignments);
-  }
-
   void _pickDate(Function(DateTime) onDatePicked) async {
     DateTime? picked = await showDatePicker(
       context: context,
@@ -52,12 +31,17 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
     if (picked != null) onDatePicked(picked);
   }
 
+  void _toggleCompletion(int index) {
+    context.read<AssignmentProvider>().toggleCompletion(index);
+  }
+
   void _showAddDialog(String type, {int? editIndex}) {
     _titleController.clear();
     _newCourseController.clear();
+    final assignments = context.read<AssignmentProvider>().assignments;
 
     if (editIndex != null) {
-      final assignment = _assignments[editIndex];
+      final assignment = assignments[editIndex];
       _titleController.text = assignment.title;
       _selectedCourse = assignment.course;
       _selectedDate = assignment.date;
@@ -99,7 +83,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
                               : 'Assignment Name',
                     ),
                   ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: _selectedCourse,
                     items: _courseOptions
@@ -108,7 +92,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
                     onChanged: (val) => setModalState(() => _selectedCourse = val),
                     decoration: InputDecoration(labelText: 'Course'),
                   ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
@@ -129,7 +113,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
                     ],
                   ),
                 ],
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () {
                     if (type == 'Course') {
@@ -137,7 +121,6 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
                       setState(() {
                         _courseOptions.add(_newCourseController.text);
                       });
-                      _newCourseController.clear();
                     } else {
                       if (_titleController.text.isEmpty ||
                           _selectedCourse == null ||
@@ -145,42 +128,81 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
                         return;
                       }
 
-                      final assignment = Assignment(
+                      final newAssignment = Assignment(
                         title: _titleController.text,
                         course: _selectedCourse!,
                         date: _selectedDate!,
-                        isComplete: editIndex != null ? _assignments[editIndex].isComplete : false,
+                        isComplete: editIndex != null
+                            ? assignments[editIndex].isComplete
+                            : false,
                       );
 
-                      setState(() {
-                        if (editIndex != null) {
-                          _assignments[editIndex] = assignment;
-                        } else {
-                          _assignments.add(assignment);
-                        }
-                      });
-
-                      AssignmentStorage.saveAssignments(_assignments);
-                      _titleController.clear();
+                      if (editIndex != null) {
+                        context.read<AssignmentProvider>().updateAssignment(editIndex, newAssignment);
+                      } else {
+                        context.read<AssignmentProvider>().addAssignment(newAssignment);
+                      }
                     }
+
                     Navigator.of(context).pop();
                   },
                   child: Text(
                     editIndex != null
-                        ? 'Edit ${type == 'Other' ? 'Other Event' : 'Assignment'}'
+                        ? 'Edit Assignment'
                         : type == 'Course'
                             ? 'Add Course'
-                            : type == 'Other'
-                                ? 'Add Other Event'
-                                : 'Add Assignment',
+                            : 'Add Assignment',
                   ),
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
               ],
             );
           },
         ),
       ),
+    );
+  }
+
+  void _showAssignmentDetailDialog(Assignment assignment, int index) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text('Assignment Details'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Title: ${assignment.title}'),
+              Text('Course: ${assignment.course}'),
+              Text('Date: ${assignment.date.toLocal().toString().split(' ')[0]}'),
+              Text('Completed: ${assignment.isComplete ? 'Yes' : 'No'}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                final index = context.read<AssignmentProvider>().assignments.indexOf(assignment);
+                _showAddDialog('Assignment', editIndex: index);
+              },
+              child: Text('Edit'),
+            ),
+            TextButton(
+              onPressed: () {
+                final index = context.read<AssignmentProvider>().assignments.indexOf(assignment);
+                context.read<AssignmentProvider>().deleteAssignment(index);
+                Navigator.of(context).pop();
+              },
+              child: Text('Delete'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -248,123 +270,32 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
         _showAddDialog(type);
       },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         alignment: Alignment.centerLeft,
         width: 140,
-        child: Text(type, style: TextStyle(color: Colors.black)),
+        child: Text(type, style: const TextStyle(color: Colors.black)),
       ),
     );
-  }
-
-  Widget _buildAssignmentTile(Assignment assignment, int index) {
-    return Card(
-      elevation: 2,
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Checkbox(
-          value: assignment.isComplete,
-          onChanged: (_) => _toggleCompletion(index),
-        ),
-        title: Text(
-          assignment.title,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-            decoration: assignment.isComplete ? TextDecoration.lineThrough : null,
-          ),
-        ),
-        subtitle: Text(
-          assignment.course,
-          style: TextStyle(fontSize: 14),
-        ),
-        trailing: Container(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.brown[100],
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            '${assignment.date.month}/${assignment.date.day}',
-            style: TextStyle(fontSize: 12),
-          ),
-        ),
-        onTap: () => _showAssignmentDetailDialog(assignment, index),
-      ),
-    );
-  }
-
-  void _showAssignmentDetailDialog(Assignment assignment, int index) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text('Assignment Details'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Title: ${assignment.title}'),
-              Text('Course: ${assignment.course}'),
-              Text('Date: ${assignment.date.toLocal().toString().split(' ')[0]}'),
-              Text('Completed: ${assignment.isComplete ? 'Yes' : 'No'}'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _showAddDialog('Assignment', editIndex: index);
-              },
-              child: Text('Edit'),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _assignments.removeAt(index);
-                });
-                AssignmentStorage.saveAssignments(_assignments);
-                Navigator.of(context).pop();
-              },
-              child: Text('Delete'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _newCourseController.dispose();
-    _dropdownAnimationController?.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final assignments = context.watch<AssignmentProvider>().assignments;
+
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: SafeArea(
         child: Column(
           children: [
             Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Color(0xDDBDAA94),
-                borderRadius: BorderRadius.only(
-                  bottomRight: Radius.circular(40),
-                ),
+                borderRadius: BorderRadius.only(bottomRight: Radius.circular(40)),
               ),
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+                children: const [
                   Text(
                     'ASSIGNMENTS',
                     style: TextStyle(
@@ -381,33 +312,76 @@ class _AssignmentScreenState extends State<AssignmentScreen> with TickerProvider
               ),
             ),
             Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: ElevatedButton(
                   key: _menuKey,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xDDBDAA94),
-                    shape: StadiumBorder(),
+                    backgroundColor: const Color(0xDDBDAA94),
+                    shape: const StadiumBorder(),
                     elevation: 2,
-                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   ),
                   onPressed: _showDropdownMenu,
-                  child: Icon(Icons.add, color: Colors.black),
+                  child: const Icon(Icons.add, color: Colors.black),
                 ),
               ),
             ),
             Expanded(
-              child: _assignments.isEmpty
-                  ? Center(child: Text('No assignments yet.'))
+              child: assignments.isEmpty
+                  ? const Center(child: Text('No assignments yet.'))
                   : ListView.builder(
-                      itemCount: _assignments.length,
-                      itemBuilder: (ctx, index) => _buildAssignmentTile(_assignments[index], index),
+                      itemCount: assignments.length,
+                      itemBuilder: (ctx, index) {
+                        final assignment = assignments[index];
+                        return Card(
+                          elevation: 2,
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            leading: Checkbox(
+                              value: assignment.isComplete,
+                              onChanged: (_) => _toggleCompletion(index),
+                            ),
+                            title: Text(
+                              assignment.title,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                decoration: assignment.isComplete ? TextDecoration.lineThrough : null,
+                              ),
+                            ),
+                            subtitle: Text(assignment.course, style: const TextStyle(fontSize: 14)),
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.brown[100],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${assignment.date.month}/${assignment.date.day}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                            onTap: () => _showAssignmentDetailDialog(assignment, index),
+                          ),
+                        );
+                      },
                     ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _newCourseController.dispose();
+    _dropdownAnimationController?.dispose();
+    super.dispose();
   }
 }
