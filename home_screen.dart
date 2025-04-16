@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'assignment_model.dart'; // make sure path is correct
+import 'assignment_model.dart';
+import 'assignment_storage.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -10,12 +11,20 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool isWeekSelected = true;
+  List<Assignment> allAssignments = [];
 
-  List<Assignment> allAssignments = [
-    Assignment(title: "Essay", course: "ENG101", date: DateTime.now(), isComplete: true),
-    Assignment(title: "Lab Report", course: "BIO150", date: DateTime.now(), isComplete: false),
-    Assignment(title: "Reading", course: "PHIL100", date: DateTime.now().subtract(Duration(days: 10)), isComplete: true),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadAssignments();
+  }
+
+  void _loadAssignments() async {
+    final loaded = await AssignmentStorage.loadAssignments();
+    setState(() {
+      allAssignments = loaded;
+    });
+  }
 
   List<Assignment> get filteredAssignments {
     if (isWeekSelected) {
@@ -41,15 +50,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFAF9F7),
+      backgroundColor: const Color(0xFFFAF9F7),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
             Container(
-              color: Color(0xFFD2BAA4),
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: const Color(0xFFD2BAA4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: const [
@@ -105,11 +114,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   children: [
                     CircleAvatar(
-                      backgroundColor: Color(0xFFC8B7A6),
+                      backgroundColor: const Color(0xFFC8B7A6),
                       radius: 14,
                       child: Text(
                         countByStatus(status).toString(),
-                        style: TextStyle(color: Colors.black),
+                        style: const TextStyle(color: Colors.black),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -126,12 +135,12 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Color(0xFFE4D3C1),
+                  color: const Color(0xFFE4D3C1),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
+                child: const Text(
                   "This Week:",
                   style: TextStyle(
                     fontSize: 16,
@@ -158,6 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             setState(() {
                               assignment.isComplete = val ?? false;
                             });
+                            AssignmentStorage.saveAssignments(allAssignments);
                           },
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                         ),
@@ -167,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        tileColor: Color(0xFFEAE8E4),
+                        tileColor: const Color(0xFFEAE8E4),
                       ),
                     );
                   },
