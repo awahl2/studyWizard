@@ -53,4 +53,4 @@ app worked properly.
 
 ## 🎀 Next Steps
 
-**୨୧** Some next steps will include creating a better, smoother UI. There will be options added to delete, sort, and edit assignments. Another addition that will be added is a rewards system where every completed assignment gives a reward. Further, there will be an option to adjust the timers on the Pomodoro page. There will also be upcoming assignments on the homepage, as well as more options for tests and projects when creating assignments.
+**୨୧** Some next steps will include creating a better, smoother UI. There will be options added to delete, sort, and edit assignments. Another addition is a rewards system where for every completed assignment will be given a reward. Further, there will be an option to adjust the timers on the Pomodoro page. There will also be upcoming assignments on the homepage, as well as more options for tests and projects when creating assignments. We all are our own worst critics, so there are infinite aspects that I would  love to gradually improve as time allows.
