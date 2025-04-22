@@ -34,13 +34,25 @@ class AssignmentStorage {
     final csvContent = await file.readAsString();
     final rows = const CsvToListConverter().convert(csvContent);
 
-    return rows.map((row) {
-      return Assignment(
-        title: row[0],
-        course: row[1],
-        date: DateTime.parse(row[2]),
-        isComplete: row[3] == '1',
-      );
-    }).toList();
+    return rows.where((row) {
+      // Make sure each row has exactly 4 elements
+      if (row.length != 4) {
+        print('Skipping malformed row: $row');
+        return false;
+      }
+      return true;
+    }).map((row) {
+      try {
+        return Assignment(
+          title: row[0],
+          course: row[1],
+          date: DateTime.parse(row[2]),
+          isComplete: row[3] == '1',
+        );
+      } catch (e) {
+        // print('Error parsing row: $row');
+        return null;
+      }
+    }).whereType<Assignment>().toList(); // Filter out any nulls
   }
 }
