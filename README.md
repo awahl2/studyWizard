@@ -44,7 +44,9 @@ classDiagram
 
 ## 🎀 Instructions
 
-**୨୧** To use the app, create a folder, and set up [Flutter](https://flutter.dev/?utm_source=google&utm_medium=cpc&utm_campaign=brand_sem&utm_content=na_us&gad_source=1&gbraid=0AAAAAC-INI_9sR-MNn8EWTv4wsWtBLP0D&gclid=Cj0KCQjw_JzABhC2ARIsAPe3ynpU0p3h6QkbvtOmAOR6ccz-gtUbnDOpW5n_1ZrlAbYWb9cLWwZE3X0aAiIIEALw_wcB&gclsrc=aw.ds). After flutter is set up in the folder, the main.dart file as well as  the folders can be pasted inside the your_folder\lib file. After the command ```flutter run``` is used inside the terminal, the project can be used. Due to the saving capabilities, if the window is closed, the project will save data.
+**୨୧** To use the app, create a folder, and set up [Flutter](https://flutter.dev/?utm_source=google&utm_medium=cpc&utm_campaign=brand_sem&utm_content=na_us&gad_source=1&gbraid=0AAAAAC-INI_9sR-MNn8EWTv4wsWtBLP0D&gclid=Cj0KCQjw_JzABhC2ARIsAPe3ynpU0p3h6QkbvtOmAOR6ccz-gtUbnDOpW5n_1ZrlAbYWb9cLWwZE3X0aAiIIEALw_wcB&gclsrc=aw.ds). After flutter is set up in the folder, the main.dart file as well as  the folders can be pasted inside the your_folder\lib file.
+
+**୨୧** Run these commands to edit your pubspec file with the necessary packages: ```flutter pub add path_provider```, ```flutter pub add csv```, ```flutter pub add provider```. Or you can add them manually, if you choose. After this, the command ```flutter run``` is used inside the terminal, and the project can be used. Due to the saving capabilities, if the window is closed, the project will save data.
 
 **୨୧** This was created and tested in Visual Studio Code. It was tested manually. After every addition to the project, it was manually tested to ensure that the app worked properly.
 
