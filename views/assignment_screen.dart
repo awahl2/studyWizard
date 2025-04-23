@@ -18,6 +18,39 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
     Provider.of<AssignmentController>(context, listen: false).loadAssignments();
   }
 
+  void _showEditDialog(BuildContext context, int index, String currentTitle) {
+    final controller = Provider.of<AssignmentController>(context, listen: false);
+    final TextEditingController editController = TextEditingController(text: currentTitle);
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit Assignment'),
+        content: TextField(
+          controller: editController,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Edit title'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final newText = editController.text.trim();
+              if (newText.isNotEmpty) {
+                controller.updateAssignment(index, newText);
+              }
+              Navigator.of(context).pop();
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Provider.of<AssignmentController>(context);
@@ -54,10 +87,26 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
               itemCount: controller.assignments.length,
               itemBuilder: (context, index) {
                 final assignment = controller.assignments[index];
-                return CheckboxListTile(
-                  title: Text(assignment.title),
-                  value: assignment.isCompleted,
-                  onChanged: (_) => controller.toggleAssignmentCompletion(index),
+                return ListTile(
+                  leading: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.grey), // Updated to gray
+                    onPressed: () => controller.deleteAssignment(index),
+                  ),
+                  title: GestureDetector(
+                    onTap: () => _showEditDialog(context, index, assignment.title),
+                    child: Text(
+                      assignment.title,
+                      style: TextStyle(
+                        decoration: assignment.isCompleted
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                      ),
+                    ),
+                  ),
+                  trailing: Checkbox(
+                    value: assignment.isCompleted,
+                    onChanged: (_) => controller.toggleAssignmentCompletion(index),
+                  ),
                 );
               },
             ),
